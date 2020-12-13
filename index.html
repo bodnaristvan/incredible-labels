@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>The incredible label printer</title>
+
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/paper-css/0.3.0/paper.css">
+
+    <style>
+      @page { size: A4 }
+      body {
+        margin: 0;
+        padding: 0;
+        width: 210mm;
+        height: 297mm;
+      }
+
+      #form {
+        width: 80%;
+        margin: 20px auto;
+        font-size: 18px;
+      }
+      #form textarea {
+        width: 100%;
+        height: 150px;
+        font-size: 10pt;
+        line-height: 12pt;
+      }
+
+      .labels {
+        /* label base values */
+        grid-template-columns: repeat(3, 1fr);
+        grid-gap: 0mm 2mm;
+        padding: 15mm 8mm;
+
+        /* misc styles */
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        display: grid;
+      }
+      .label {
+        /* label size */
+        width: 63mm;
+        height: 38mm;
+
+        /* ~~emulated~~ grid */
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        box-sizing: border-box;
+        border-radius: 2mm;
+
+        /* label style */
+        font-family: 'Montserrat', sans-serif;
+        padding: 5mm;
+        overflow: hidden;
+        font-size: 10pt;
+        line-height: 12pt;
+
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+      }
+      .label .postalcode {
+        letter-spacing: 0.25em;
+      }
+
+    </style>
+    <style media="print">
+      @page { size: A4 }
+      /* disable some elements from printed version */
+      #form {
+        display: none;
+      }
+      .label {
+        border: none;
+      }
+    </style>
+
+
+  </head>
+  <body class="A4">
+    <div id="form">
+      <strong>Címek</strong> <em>(CSV vesszővel elválasztva: név, cím, város, irányítószám, ország):</em><br />
+      <textarea id="addresses"></textarea>
+      <br />
+      <label for="used">már elhasznált etikettek a papíron:</label><input type="text" id="used" value="0" size="2" />
+    </div>
+    <div id="labels"></div>
+  </body>
+  <script type="text/javascript">
+    const t = document.getElementById('addresses');
+    const u = document.getElementById('used');
+    const labels = document.getElementById('labels');
+
+    const formatLabel = (addressObj) => {
+      const { name, address, city, postalcode, country } = addressObj;
+      let retval = '<div>';
+      if (name) retval += `<strong>${name}</strong><br />`;
+      if (city) retval += `${city}<br />`;
+      if (address) retval += `${address}<br />`;
+      if (postalcode) retval += `<span class="postalcode">${postalcode}</span>`;
+      retval += '</div>';
+      return retval;
+    }
+
+    const textChangeHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const usedPrints = parseInt(u.value, 10) || 0;
+      const addresses = new Array(usedPrints).fill(null);
+      labels.innerHTML = '';
+
+      const lines = t.value.split("\n");
+      lines.forEach((a) => {
+        const [name, address, city, postalcode, country] = a.split(',');
+        addresses.push({name, address, city, postalcode, country});
+      });
+      // fill paper with empty labels if needed
+      const leftover = addresses.length % 21;
+      const filledAddresses = (leftover) ? addresses.concat(new Array(21 - leftover).fill(null)) : addresses;
+      const pages = Math.floor(filledAddresses.length / 21);
+
+      for (let p = 0; p < pages; p++) {
+        const sheet = document.createElement('div');
+        sheet.className = 'sheet labels';
+
+        filledAddresses.slice(p * 21, (p + 1) * 21).forEach((addr) => {
+          const label = document.createElement('div');
+          label.className = 'label';
+          label.innerHTML = addr ? formatLabel(addr) : '';
+          sheet.appendChild(label);
+        });
+        labels.appendChild(sheet);
+      }
+    }
+    t.addEventListener('keyup', textChangeHandler);
+    u.addEventListener('keyup', textChangeHandler);
+  </script>
+</html>
