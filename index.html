@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/paper-css/0.3.0/paper.css">
+    <script type="text/javascript" src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
 
     <style>
       @page { size: A4 }
@@ -64,6 +65,7 @@
       }
       .label .postalcode {
         letter-spacing: 0.25em;
+        margin-right: 0.5em;
       }
 
     </style>
@@ -98,9 +100,16 @@
       const { name, address, city, postalcode, country } = addressObj;
       let retval = '<div>';
       if (name) retval += `<strong>${name}</strong><br />`;
-      if (city) retval += `${city}<br />`;
-      if (address) retval += `${address}<br />`;
-      if (postalcode) retval += `<span class="postalcode">${postalcode}</span>`;
+      if (!country || country === 'Magyarország') {
+        if (city) retval += `${city}<br />`;
+        if (address) retval += `${address}<br />`;
+        if (postalcode) retval += `<span class="postalcode">${postalcode}</span>`;
+      } else {
+        if (address) retval += `${address}<br />`;
+        if (postalcode) retval += `<span class="postalcode">${postalcode}</span>`;
+        if (city) retval += `${city}<br />`;
+        retval += `${country}`;
+      }
       retval += '</div>';
       return retval;
     }
@@ -109,24 +118,25 @@
       e.preventDefault();
       e.stopPropagation();
       const usedPrints = parseInt(u.value, 10) || 0;
-      const addresses = new Array(usedPrints).fill(null);
       labels.innerHTML = '';
 
-      const lines = t.value.split("\n");
-      lines.forEach((a) => {
-        const [name, address, city, postalcode, country] = a.split(',');
-        addresses.push({name, address, city, postalcode, country});
+      const addressLines = Papa.parse(t.value);
+      const parsedAddresses = addressLines.data.map((a) => {
+        const [name, address, city, postalcode, country] = a;
+        return {name, address, city, postalcode, country};
       });
-      // fill paper with empty labels if needed
-      const leftover = addresses.length % 21;
-      const filledAddresses = (leftover) ? addresses.concat(new Array(21 - leftover).fill(null)) : addresses;
-      const pages = Math.floor(filledAddresses.length / 21);
+
+      const prefilledAddr = new Array(usedPrints).fill(null);
+      const leftover = parsedAddresses.length % 21;
+      const addresses = prefilledAddr.concat(parsedAddresses, new Array(21 - leftover).fill(null));
+
+      const pages = Math.floor(addresses.length / 21);
 
       for (let p = 0; p < pages; p++) {
         const sheet = document.createElement('div');
         sheet.className = 'sheet labels';
 
-        filledAddresses.slice(p * 21, (p + 1) * 21).forEach((addr) => {
+        addresses.slice(p * 21, (p + 1) * 21).forEach((addr) => {
           const label = document.createElement('div');
           label.className = 'label';
           label.innerHTML = addr ? formatLabel(addr) : '';
